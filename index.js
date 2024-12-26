@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const helmet = require("helmet");
 const multer = require("multer");
+const rateLimit = require("express-rate-limit");
 const { Model } = require("./utils/orm");
 
 const app = express();
@@ -140,8 +141,17 @@ app.use(
   })
 );
 
+// Rate limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: "Too many login attempts, please try again after 15 minutes",
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
 // Register endpoint
-app.post("/register", async (req, res) => {
+app.post("/register", authLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   try {
@@ -164,7 +174,7 @@ app.post("/register", async (req, res) => {
 });
 
 // Login endpoint
-app.post("/login", async (req, res) => {
+app.post("/login", authLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   db.get(
